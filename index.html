@@ -995,32 +995,53 @@ function applyRelationship(form, n){
 }
 
 /* ---------- Generate PDF ---------- */
-async function fillPDF(){
+async function fillPDF(mode) {
   try {
-    $("generate").disabled = true;
+    // disable both buttons while processing
+    $("generate_editable").disabled = true;
+    $("generate_final").disabled = true;
 
+    // load template
     const res = await fetch(PDF_FILENAME);
-    if (!res.ok) throw new Error("Cannot load PDF: " + PDF_FILENAME);
-    const bytes = await res.arrayBuffer();
-    const pdfDoc = await PDFLib.PDFDocument.load(bytes);
+    const buf = await res.arrayBuffer();
+    const pdfDoc = await PDFLib.PDFDocument.load(buf);
     const form = pdfDoc.getForm();
 
-    // HEADER
-    safeCheck(form, "CCAgree", $("CCAgree").checked);
-    safeCheck(form, "Onetimecharge_tick", $("Onetimecharge_tick").checked);
+    // fill your form fields here...
+    // Example: form.getTextField("PolicyNo1").setText($("PolicyNo1").value);
 
-    if ($("Onetimecharge_tick").checked) {
-      if ($("Onetimecharge_alloutstanding").checked) {
-        safeCheck(form, "Onetimecharge_alloutstanding", true);
-        safeSetText(form, "Onetimecharge_amt", "");
-      } else if ($("Onetimecharge_specific").checked) {
-        safeCheck(form, "Onetimecharge_alloutstanding", false);
-        safeSetText(form, "Onetimecharge_amt", $("Onetimecharge_amt").value || "");
-      }
-    } else {
-      safeCheck(form, "Onetimecharge_alloutstanding", false);
-      safeSetText(form, "Onetimecharge_amt", "");
+    // embed Helvetica so text looks consistent everywhere
+    const helveticaFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    form.updateFieldAppearances(helveticaFont);
+
+    // flatten if "final" mode
+    if (mode === "final") {
+      form.flatten();
     }
+
+    // save & download
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = mode === "editable"
+      ? "Filled_Credit_Card_Form_Editable.pdf"
+      : "Filled_Credit_Card_Form_Final.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2500);
+
+  } catch (err) {
+    alert("PDF generation failed: " + (err.message || err));
+    console.error(err);
+  } finally {
+    // re-enable buttons
+    $("generate_editable").disabled = false;
+    $("generate_final").disabled = false;
+  }
+}
 
     // SECTION A
     const created = policiesContainer.querySelectorAll(".policy");
