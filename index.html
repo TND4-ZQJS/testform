@@ -100,6 +100,41 @@
     /* XY% signature tuning  */
    .hidden-inputs {display: none;}
 
+  .pdf-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.apple-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  color: #fff;
+}
+
+.apple-btn:hover {
+  transform: translateY(-1px);
+}
+
+.apple-btn:active {
+  transform: translateY(1px);
+}
+
+/* Different colors for clarity */
+.apple-btn.blue {
+  background: #007aff;
+}
+
+.apple-btn.green {
+  background: #34c759;
+}
+
   
   /* Save indicator */
   #saveStatus{
@@ -382,10 +417,14 @@
   </div>
 </section>
 
-  <section class="section actions">
-    <button id="generate">Generate PDF</button>
-    <button id="resetAll" class="secondary">Reset All</button>
-  </section>
+  <div class="pdf-buttons">
+  <button type="button" id="generate_editable" class="apple-btn blue" onclick="fillPDF('editable')">
+    Download Editable PDF
+  </button>
+  <button type="button" id="generate_final" class="apple-btn green" onclick="fillPDF('final')">
+    Download Final PDF
+  </button>
+</div>
 
   <div class="hidden-inputs">
   <h3>Owner Signature</h3>
@@ -1117,19 +1156,35 @@ if (sigPayor) {
   }
 }
     
-    // Save & download
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "Filled_Credit_Card_Form.pdf"; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(url), 2500);
+  // Save & download based on mode
+let pdfBytes;
+if (mode === "editable") {
+  // keep form fields
+  pdfBytes = await pdfDoc.save();
+} else if (mode === "final") {
+  // flatten fields (convert to text, non-editable)
+  pdfDoc.getForm().flatten();
+  pdfBytes = await pdfDoc.save();
+}
 
-  } catch(err){
-    alert("PDF generation failed: " + (err.message || err));
-    console.error(err);
-  } finally {
-    $("generate").disabled = false;
-  }
+const blob = new Blob([pdfBytes], { type: "application/pdf" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = mode === "editable" 
+  ? "Filled_Credit_Card_Form_Editable.pdf" 
+  : "Filled_Credit_Card_Form_Final.pdf";
+document.body.appendChild(a);
+a.click();
+a.remove();
+setTimeout(() => URL.revokeObjectURL(url), 2500);
+
+} catch(err) {
+  alert("PDF generation failed: " + (err.message || err));
+  console.error(err);
+} finally {
+  document.getElementById("generate_editable").disabled = false;
+  document.getElementById("generate_final").disabled = false;
 }
 
 /* ---------- Reset All ---------- */
