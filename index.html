@@ -382,10 +382,18 @@
   </div>
 </section>
 
-  <section class="section actions">
-    <button id="generate">Generate PDF</button>
-    <button id="resetAll" class="secondary">Reset All</button>
-  </section>
+<div class="pdf-buttons" style="display:flex;gap:12px;justify-content:center;margin-top:20px;">
+  <button id="generate_editable" type="button"
+          onclick="fillPDF('editable')"
+          style="background:#007aff;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;">
+    Download Editable PDF
+  </button>
+  <button id="generate_final" type="button"
+          onclick="fillPDF('final')"
+          style="background:#34c759;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;">
+    Download Final PDF
+  </button>
+</div>
 
   <div class="hidden-inputs">
   <h3>Owner Signature</h3>
@@ -1117,19 +1125,36 @@ if (sigPayor) {
   }
 }
     
-    // Save & download
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "Filled_Credit_Card_Form.pdf"; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(url), 2500);
+// Save & download based on mode
+let pdfBytes;
+if (mode === "editable") {
+  // Keep form fields so user can still edit
+  pdfBytes = await pdfDoc.save();
+} else if (mode === "final") {
+  // Flatten fields into static text (fonts preserved)
+  pdfDoc.getForm().flatten();
+  pdfBytes = await pdfDoc.save();
+}
 
-  } catch(err){
-    alert("PDF generation failed: " + (err.message || err));
-    console.error(err);
-  } finally {
-    $("generate").disabled = false;
-  }
+const blob = new Blob([pdfBytes], { type: "application/pdf" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = mode === "editable" 
+  ? "Filled_Credit_Card_Form_Editable.pdf" 
+  : "Filled_Credit_Card_Form_Final.pdf";
+document.body.appendChild(a);
+a.click();
+a.remove();
+setTimeout(() => URL.revokeObjectURL(url), 2500);
+
+} catch(err) {
+  alert("PDF generation failed: " + (err.message || err));
+  console.error(err);
+} finally {
+  // re-enable buttons
+  document.getElementById("generate_editable").disabled = false;
+  document.getElementById("generate_final").disabled = false;
 }
 
 /* ---------- Reset All ---------- */
